@@ -66,6 +66,26 @@ def run():
     df = df.sort_values(by='data_alteracao_situacao', ascending=False).drop_duplicates(subset=['id_discente', 'id_turma', 'unidade'], keep='first')
     df = df.sort_values(by=['id_discente','id_turma', 'unidade'])
 
+    df['nivel_ensino_x'] = df['nivel_ensino_x'].astype(str).str.upper().str.strip()
+    df = df[df['nivel_ensino_x'] == 'GRADUAÇÃO']
+    
+    colunas_para_remover = [
+        'ano_ingresso_y', 'periodo_ingresso_y', 'nivel_ensino_y',
+        'id_curso_y', 'curso_y', 'descricao_tipo_cota',
+        'id_curso_x', 'curso_x',
+        'nivel_ensino_x',
+        'id_discente',
+        'data_alteracao_situacao','ano_alteracao_situacao','periodo_alteracao_situacao'
+    ]
+    
+    renomear_colunas = {
+        'ano_ingresso_x': 'ano_ingresso',
+        'periodo_ingresso_x': 'periodo_ingresso',
+    }
+
+    df.drop(columns=colunas_para_remover, inplace=True)
+    df.rename(columns=renomear_colunas, inplace=True)
+
     df.to_csv("dados_completos.csv", index=False, sep=';', encoding='utf-8')
 
 run()
