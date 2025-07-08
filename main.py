@@ -107,7 +107,7 @@ def categorizar_descricao(descricao):
         return "outros"
 
 
-def preparar_dataset_completo(dados_pessoais, matriculas, situacoes):
+def get_dataset(dados_pessoais, matriculas, situacoes):
     for dataframe in [dados_pessoais, matriculas, situacoes]:
         dataframe["id_discente"] = (
             dataframe["id_discente"].astype(str).str.strip().str.lower()
@@ -189,9 +189,9 @@ def preparar_dataset_completo(dados_pessoais, matriculas, situacoes):
     )
     df_features["idade"] = ANO_ATUAL - df_features["ano_nascimento"]
 
-    df_features = df_features[
-        (df_features["idade"] >= 15) & (df_features["idade"] <= 60)
-    ]
+    # df_features = df_features[
+    #     (df_features["idade"] >= 15) & (df_features["idade"] <= 60)
+    # ]
 
     df_features = df_features.merge(disciplinas_cursadas, on="id_discente", how="left")
     df_features = df_features.merge(contagem_categorias, on="id_discente", how="left")
@@ -219,7 +219,7 @@ def preparar_dataset_completo(dados_pessoais, matriculas, situacoes):
     return df_features
 
 
-def adicionar_features_derivadas(df):
+def adicionar_features(df):
     df["percentual_trancamentos"] = (
         df["disciplina_trancada"] / df["disciplinas_cursadas"]
     )
@@ -234,7 +234,7 @@ def adicionar_features_derivadas(df):
     return df
 
 
-def limpar_colunas_para_ml(df):
+def limpar_colunas(df):
     colunas_para_remover = [
         "estado_origem",
         "cidade_origem",
@@ -262,10 +262,18 @@ def limpar_colunas_para_ml(df):
     return df
 
 
-def criar_target_binaria(df):
+def cirar_target(df):
     df["curso_trancado"] = (
-        df["status_do_discente"].str.upper().str.contains("TRANCADO").astype(int)
+        df["status_do_discente"]
+        .str.upper()
+        .apply(lambda x: int("TRANCADO" in x or "CANCELADO" in x) if pd.notna(x) else 0)
     )
+    return df
+
+
+def round_numeric_columns(df):
+    colunas_numericas = df.select_dtypes(include=["float", "float64"]).columns
+    df[colunas_numericas] = df[colunas_numericas].round(2)
     return df
 
 
@@ -274,36 +282,14 @@ def run():
     matriculas = get_matriculas(dados_pessoais)
     situacoes = get_situacoes(dados_pessoais)
 
-    df_final = preparar_dataset_completo(dados_pessoais, matriculas, situacoes)
-    df_final = adicionar_features_derivadas(df_final)
-    df_final = criar_target_binaria(df_final)
-    df_final = limpar_colunas_para_ml(df_final)
-
-    colunas_numericas = df_final.select_dtypes(include=["float", "float64"]).columns
-    df_final[colunas_numericas] = df_final[colunas_numericas].round(2)
+    df_final = get_dataset(dados_pessoais, matriculas, situacoes)
+    df_final = adicionar_features(df_final)
+    df_final = cirar_target(df_final)
+    df_final = limpar_colunas(df_final)
+    df_final = round_numeric_columns(df_final)
 
     df_final.to_csv("dados_completos.csv", index=False, sep=";", encoding="utf-8")
 
 
 if __name__ == "__main__":
     run()
-
-
-# atributos necessários:
-# quantidade de semestres
-# numero de reprovas
-# media de conclusao
-# numero de trancamentos semestre
-# numero de trancamentos matricula
-# numero de faltas
-# numero de reposicoes
-# numero de disciplinas cursadas
-
-# situacao final (curso)
-
-# 1. juntar todas as tabelas (2015-2020)
-# 2. remover atributos desnecessários
-# 3. criar atributos necessários
-# 4. treinar modelo
-
-# meu id 8514817b733fca321fabc5d81b146c21

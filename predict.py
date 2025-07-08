@@ -13,9 +13,11 @@ for col in categorical_cols:
     df[col] = le.fit_transform(df[col].astype(str))
     label_encoders[col] = le
 
+# Preenchendo valores ausentes em colunas numéricas com a mediana
 for col in df.select_dtypes(include=["float64", "int64"]):
     df[col].fillna(df[col].median(), inplace=True)
 
+# Preenchendo valores ausentes em colunas categóricas com a moda
 for col in categorical_cols:
     df[col].fillna(df[col].mode()[0], inplace=True)
 
@@ -28,6 +30,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 
 num_cols = X.select_dtypes(include=["float64", "int64"]).columns
 scaler = StandardScaler()
+
 X_train[num_cols] = scaler.fit_transform(X_train[num_cols])
 X_test[num_cols] = scaler.transform(X_test[num_cols])
 
@@ -36,14 +39,15 @@ clf.fit(X_train, y_train)
 
 y_pred = clf.predict(X_test)
 
-# Imprimindo resultados com explicações
 acc = accuracy_score(y_test, y_pred)
 print(f"Acurácia do modelo: {acc:.4f}")
 
 cm = confusion_matrix(y_test, y_pred)
-print("Matriz de Confusão:")
+print("\nMatriz de Confusão:")
 print(cm)
-print("Relatório de Classificação:")
+
+
+print("\nRelatório de Classificação:")
 report = classification_report(
     y_test, y_pred, target_names=["Não trancou (0)", "Trancou (1)"]
 )
