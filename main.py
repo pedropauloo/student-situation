@@ -24,6 +24,9 @@ def get_dados_pessoais():
     dados_pessoais = get_csv_from("./dados/dados_pessoais_discentes")
     dados_pessoais.columns = dados_pessoais.columns.str.strip().str.lower()
     dados_pessoais['id_discente'] = dados_pessoais['id_discente'].astype(str).str.strip().str.lower()
+
+    dados_pessoais.rename(columns={"status":"status_do_discente"}, inplace=True)
+    # status do discente no dia 05/08/2022
     
     return dados_pessoais
 
@@ -33,6 +36,7 @@ def get_matriculas(dados_pessoais):
     
     matriculas['discente'] = matriculas['discente'].astype(str).str.strip().str.lower()
     matriculas.rename(columns={"discente": "id_discente"}, inplace=True)
+    matriculas.rename(columns={"situacao":"situacao_matricula"}, inplace=True)
     
     matriculas["media_final"] = matriculas["media_final"].str.replace(",", ".")
     matriculas["media_final"] = pd.to_numeric(matriculas["media_final"], errors="coerce")
@@ -50,6 +54,9 @@ def get_situacoes(dados_pessoais):
     situacoes = get_csv_from("./dados/situacao_discentes")
     situacoes.columns = situacoes.columns.str.strip().str.lower()
     situacoes['id_discente'] = situacoes['id_discente'].astype(str).str.strip().str.lower()
+
+    situacoes.rename(columns={"situacao": "situacao_discente_2022"}, inplace=True)
+    # status do discente no começo do semestre 2022.1
     
     situacoes = situacoes[situacoes['id_discente'].isin(dados_pessoais['id_discente'])]
     
@@ -74,8 +81,8 @@ def run():
         'id_curso_y', 'curso_y', 'descricao_tipo_cota',
         'id_curso_x', 'curso_x',
         'nivel_ensino_x',
-        'id_discente',
-        'data_alteracao_situacao','ano_alteracao_situacao','periodo_alteracao_situacao'
+        # 'id_discente',
+        # 'data_alteracao_situacao','ano_alteracao_situacao','periodo_alteracao_situacao'
     ]
     
     renomear_colunas = {
@@ -106,3 +113,5 @@ run()
 # 2. remover atributos desnecessários
 # 3. criar atributos necessários
 # 4. treinar modelo
+
+#meu id 8514817b733fca321fabc5d81b146c21
