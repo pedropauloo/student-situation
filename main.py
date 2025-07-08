@@ -2,7 +2,7 @@ import pandas as pd
 import os
 import unicodedata
 
-ANO_ATUAL = 2025  # Defina o ano atual para calcular a idade
+ANO_ATUAL = 2025
 
 
 def get_csv_from(pasta_csv):
@@ -31,7 +31,6 @@ def get_dados_pessoais():
     dados_pessoais["id_discente"] = (
         dados_pessoais["id_discente"].astype(str).str.strip().str.lower()
     )
-    # Padronizar colunas importantes, se quiser, como status
     dados_pessoais.rename(columns={"status": "status_do_discente"}, inplace=True)
     return dados_pessoais
 
@@ -40,10 +39,8 @@ def get_matriculas(dados_pessoais):
     matriculas = get_csv_from("./dados/matriculas")
     matriculas.columns = matriculas.columns.str.strip().str.lower()
 
-    # Renomear 'discente' para 'id_discente' antes de manipular
     matriculas.rename(columns={"discente": "id_discente"}, inplace=True)
 
-    # Remover colunas duplicadas (id_discente aparece duas vezes)
     matriculas = matriculas.loc[:, ~matriculas.columns.duplicated()]
 
     matriculas["id_discente"] = (
@@ -82,7 +79,6 @@ def get_situacoes(dados_pessoais):
     situacoes.rename(columns={"situacao": "situacao_discente_2022"}, inplace=True)
     situacoes = situacoes[situacoes["id_discente"].isin(dados_pessoais["id_discente"])]
 
-    # Padronizar situacao_discente_2022: maiúsculas, sem espaços e sem acento
     situacoes["situacao_discente_2022"] = (
         situacoes["situacao_discente_2022"].str.strip().str.upper()
     )
@@ -112,16 +108,13 @@ def categorizar_descricao(descricao):
 
 
 def preparar_dataset_completo(dados_pessoais, matriculas, situacoes):
-    # Padronizar id_discente para todos
     for dataframe in [dados_pessoais, matriculas, situacoes]:
         dataframe["id_discente"] = (
             dataframe["id_discente"].astype(str).str.strip().str.lower()
         )
 
-    # Categorizar matrículas
     matriculas["categoria"] = matriculas["descricao"].apply(categorizar_descricao)
 
-    # Agregações da tabela matriculas
     disciplinas_cursadas = (
         matriculas.groupby("id_discente")["id_turma"]
         .nunique()
@@ -171,7 +164,6 @@ def preparar_dataset_completo(dados_pessoais, matriculas, situacoes):
         .reset_index(name="total_reposicoes")
     )
 
-    # Agregações da tabela situacoes
     situacoes["semestre"] = (
         situacoes["ano_alteracao_situacao"].astype(str)
         + "."
@@ -184,17 +176,14 @@ def preparar_dataset_completo(dados_pessoais, matriculas, situacoes):
         .reset_index(name="semestres_cursados")
     )
 
-    # Última situação como target
     ultima_situacao = (
         situacoes.sort_values("data_alteracao_situacao")
         .groupby("id_discente")
         .tail(1)[["id_discente", "situacao_discente_2022"]]
     )
 
-    # Começar com dados pessoais
     df_features = dados_pessoais.copy()
 
-    # Criar idade
     df_features["ano_nascimento"] = pd.to_numeric(
         df_features["ano_nascimento"], errors="coerce"
     )
@@ -204,7 +193,6 @@ def preparar_dataset_completo(dados_pessoais, matriculas, situacoes):
         (df_features["idade"] >= 15) & (df_features["idade"] <= 60)
     ]
 
-    # Merge com agregações de matrículas
     df_features = df_features.merge(disciplinas_cursadas, on="id_discente", how="left")
     df_features = df_features.merge(contagem_categorias, on="id_discente", how="left")
     df_features = df_features.merge(media_geral, on="id_discente", how="left")
@@ -212,13 +200,10 @@ def preparar_dataset_completo(dados_pessoais, matriculas, situacoes):
     df_features = df_features.merge(total_faltas, on="id_discente", how="left")
     df_features = df_features.merge(total_reposicoes, on="id_discente", how="left")
 
-    # Merge com agregações de situações
     df_features = df_features.merge(semestres_cursados, on="id_discente", how="left")
 
-    # Merge com target
     df_features = df_features.merge(ultima_situacao, on="id_discente", how="left")
 
-    # Preencher NaNs que fazem sentido com 0
     col_numericas = [
         "disciplinas_cursadas",
         "media_final_geral",
@@ -262,10 +247,9 @@ def limpar_colunas_para_ml(df):
         "tipo_cota",
         "descricao_tipo_cota",
         "status_do_discente",
-        "situacao_discente_2022",  # remove info antiga
+        "situacao_discente_2022",
     ]
 
-    # Remover colunas se existirem
     colunas_existentes = [col for col in colunas_para_remover if col in df.columns]
     df = df.drop(columns=colunas_existentes)
 
@@ -274,10 +258,6 @@ def limpar_colunas_para_ml(df):
             df["cotista"].astype(str).str.strip().str.lower().map({"t": 1, "f": 0})
         )
         df["cotista"] = df["cotista"].fillna(0).astype(int)
-
-    # if "status_do_discente" in df.columns:
-    #     status = df.pop("status_do_discente")
-    #     df["status_do_discente"] = status
 
     return df
 
@@ -302,7 +282,6 @@ def run():
     colunas_numericas = df_final.select_dtypes(include=["float", "float64"]).columns
     df_final[colunas_numericas] = df_final[colunas_numericas].round(2)
 
-    # Salvar resultado final
     df_final.to_csv("dados_completos.csv", index=False, sep=";", encoding="utf-8")
 
 

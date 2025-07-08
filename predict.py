@@ -36,6 +36,15 @@ clf.fit(X_train, y_train)
 
 y_pred = clf.predict(X_test)
 
-print("Acurácia:", accuracy_score(y_test, y_pred))
-print("Matriz de confusão:\n", confusion_matrix(y_test, y_pred))
-print("Classificação:\n", classification_report(y_test, y_pred))
+# Imprimindo resultados com explicações
+acc = accuracy_score(y_test, y_pred)
+print(f"Acurácia do modelo: {acc:.4f}")
+
+cm = confusion_matrix(y_test, y_pred)
+print("Matriz de Confusão:")
+print(cm)
+print("Relatório de Classificação:")
+report = classification_report(
+    y_test, y_pred, target_names=["Não trancou (0)", "Trancou (1)"]
+)
+print(report)
