@@ -32,6 +32,11 @@ def get_dados_pessoais():
         dados_pessoais["id_discente"].astype(str).str.strip().str.lower()
     )
     dados_pessoais.rename(columns={"status": "status_do_discente"}, inplace=True)
+    
+    dados_pessoais = dados_pessoais[
+        dados_pessoais["nivel_ensino"].str.strip().str.upper() == "GRADUAÇÃO"
+    ]
+
     return dados_pessoais
 
 
@@ -239,7 +244,7 @@ def adicionar_features(df):
 def limpar_colunas(df):
     colunas_para_remover = [
         "estado_origem",
-        "cidade_origem",
+        "cidade_origem",    
         "estado",
         "municipio",
         "bairro",
