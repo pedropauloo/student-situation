@@ -21,7 +21,13 @@ for col in df.select_dtypes(include=["float64", "int64"]):
 for col in categorical_cols:
     df[col].fillna(df[col].mode()[0], inplace=True)
 
-X = df.drop(columns=["id_discente", "curso_trancado"])
+X = df.drop(
+    columns=[
+        "id_discente",
+        "curso_trancado",
+        "ano_nascimento",
+    ]
+)
 y = df["curso_trancado"]
 
 X_train, X_test, y_train, y_test = train_test_split(

@@ -97,12 +97,14 @@ def categorizar_descricao(descricao):
     if pd.isna(descricao):
         return "outros"
     desc = descricao.strip().upper()
-    if "APROVADO" in desc:
+    if "APROVADO" in desc or "DISPENSADO" in desc:
         return "aprovada"
     elif "REPROVADO" in desc:
         return "reprovada"
-    elif "TRANCADO" in desc:
+    elif "TRANCADO" in desc or "CANCELADO" in desc or "DESISTENCIA" in desc:
         return "trancada"
+    elif "INDEFERIDO" in desc:
+        return "indeferido"
     else:
         return "outros"
 
