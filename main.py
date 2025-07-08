@@ -2,9 +2,6 @@ import pandas as pd
 import os
 import unicodedata
 
-ANO_ATUAL = 2025
-
-
 def get_csv_from(pasta_csv):
     dfs = []
     arquivos = [f for f in os.listdir(pasta_csv) if f.endswith(".csv")]
@@ -194,11 +191,9 @@ def get_dataset(dados_pessoais, matriculas, situacoes):
     df_features["ano_nascimento"] = pd.to_numeric(
         df_features["ano_nascimento"], errors="coerce"
     )
-    df_features["idade"] = ANO_ATUAL - df_features["ano_nascimento"]
-
-    # df_features = df_features[
-    #     (df_features["idade"] >= 15) & (df_features["idade"] <= 60)
-    # ]
+    
+    ano_atual = pd.to_datetime("now").year
+    df_features["idade"] = ano_atual - df_features["ano_nascimento"]
 
     df_features = df_features.merge(disciplinas_cursadas, on="id_discente", how="left")
     df_features = df_features.merge(contagem_categorias, on="id_discente", how="left")
@@ -270,10 +265,10 @@ def limpar_colunas(df):
 
 
 def cirar_target(df):
-    df["curso_trancado"] = (
+    df["aluno_evadio"] = (
         df["status_do_discente"]
         .str.upper()
-        .apply(lambda x: int("TRANCADO" in x or "CANCELADO" in x) if pd.notna(x) else 0)
+        .apply(lambda x: int("CANCELADO" in x or "DESISTENCIA" in x) if pd.notna(x) else 0)
     )
     return df
 

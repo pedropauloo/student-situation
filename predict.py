@@ -24,11 +24,11 @@ for col in categorical_cols:
 X = df.drop(
     columns=[
         "id_discente",
-        "curso_trancado",
+        "aluno_evadio",
         "ano_nascimento",
     ]
 )
-y = df["curso_trancado"]
+y = df["aluno_evadio"]
 
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
@@ -40,7 +40,7 @@ scaler = StandardScaler()
 X_train[num_cols] = scaler.fit_transform(X_train[num_cols])
 X_test[num_cols] = scaler.transform(X_test[num_cols])
 
-clf = RandomForestClassifier(random_state=42)
+clf = RandomForestClassifier(class_weight='balanced', random_state=42)
 clf.fit(X_train, y_train)
 
 y_pred = clf.predict(X_test)
@@ -55,16 +55,9 @@ print(cm)
 
 print("\nRelatório de Classificação:")
 report = classification_report(
-    y_test, y_pred, target_names=["Não trancou (0)", "Trancou (1)"]
+    y_test, y_pred, target_names=["Não Evadiu", "Evadido"], zero_division=0
 )
 print(report)
-
-# aumentar o range do dataset
-
-# ficar apenas com gradução
-
-# status == cancelado -> evadiu
-# status != cancelado -> não evadiu
 
 # tentar balancear o dataset
 # treinar outros modelos
