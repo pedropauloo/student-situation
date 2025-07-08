@@ -48,13 +48,23 @@ y_pred = clf.predict(X_test)
 acc = accuracy_score(y_test, y_pred)
 print(f"Acurácia do modelo: {acc:.4f}")
 
+
 cm = confusion_matrix(y_test, y_pred)
 print("\nMatriz de Confusão:")
 print(cm)
-
 
 print("\nRelatório de Classificação:")
 report = classification_report(
     y_test, y_pred, target_names=["Não trancou (0)", "Trancou (1)"]
 )
 print(report)
+
+# aumentar o range do dataset
+
+# ficar apenas com gradução
+
+# status == cancelado -> evadiu
+# status != cancelado -> não evadiu
+
+# tentar balancear o dataset
+# treinar outros modelos
