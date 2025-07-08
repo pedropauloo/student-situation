@@ -1,0 +1,41 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+
+df = pd.read_csv("dados_completos.csv", sep=";")
+
+categorical_cols = ["sexo", "raca"]
+label_encoders = {}
+for col in categorical_cols:
+    le = LabelEncoder()
+    df[col] = le.fit_transform(df[col].astype(str))
+    label_encoders[col] = le
+
+for col in df.select_dtypes(include=["float64", "int64"]):
+    df[col].fillna(df[col].median(), inplace=True)
+
+for col in categorical_cols:
+    df[col].fillna(df[col].mode()[0], inplace=True)
+
+X = df.drop(columns=["id_discente", "curso_trancado"])
+y = df["curso_trancado"]
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+num_cols = X.select_dtypes(include=["float64", "int64"]).columns
+scaler = StandardScaler()
+X_train[num_cols] = scaler.fit_transform(X_train[num_cols])
+X_test[num_cols] = scaler.transform(X_test[num_cols])
+
+clf = RandomForestClassifier(random_state=42)
+clf.fit(X_train, y_train)
+
+y_pred = clf.predict(X_test)
+
+print("Acurácia:", accuracy_score(y_test, y_pred))
+print("Matriz de confusão:\n", confusion_matrix(y_test, y_pred))
+print("Classificação:\n", classification_report(y_test, y_pred))

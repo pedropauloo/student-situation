@@ -261,7 +261,7 @@ def limpar_colunas_para_ml(df):
         "forma_ingresso",
         "tipo_cota",
         "descricao_tipo_cota",
-        # "status_do_discente",
+        "status_do_discente",
         "situacao_discente_2022",  # remove info antiga
     ]
 
