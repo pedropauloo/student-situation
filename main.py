@@ -143,13 +143,6 @@ def get_dataset(dados_pessoais, matriculas, situacoes):
         .reset_index(name="media_final_geral")
     )
 
-    std_media = (
-        matriculas.groupby("id_discente")["media_final"]
-        .std()
-        .fillna(0)
-        .reset_index(name="std_media_final")
-    )
-
     faltas_unicas = (
         matriculas.groupby(["id_discente", "id_turma"])["numero_total_faltas"]
         .first()
@@ -198,7 +191,6 @@ def get_dataset(dados_pessoais, matriculas, situacoes):
     df_features = df_features.merge(disciplinas_cursadas, on="id_discente", how="left")
     df_features = df_features.merge(contagem_categorias, on="id_discente", how="left")
     df_features = df_features.merge(media_geral, on="id_discente", how="left")
-    df_features = df_features.merge(std_media, on="id_discente", how="left")
     df_features = df_features.merge(total_faltas, on="id_discente", how="left")
     df_features = df_features.merge(total_reposicoes, on="id_discente", how="left")
 
@@ -209,7 +201,6 @@ def get_dataset(dados_pessoais, matriculas, situacoes):
     col_numericas = [
         "disciplinas_cursadas",
         "media_final_geral",
-        "std_media_final",
         "total_faltas",
         "total_reposicoes",
         "semestres_cursados",
@@ -219,22 +210,6 @@ def get_dataset(dados_pessoais, matriculas, situacoes):
             df_features[col] = df_features[col].fillna(0)
 
     return df_features
-
-
-def adicionar_features(df):
-    df["percentual_trancamentos"] = (
-        df["disciplina_trancada"] / df["disciplinas_cursadas"]
-    )
-    df["percentual_reprovacoes"] = (
-        df["disciplina_reprovada"] / df["disciplinas_cursadas"]
-    )
-    df["media_faltas_por_disciplina"] = df["total_faltas"] / df["disciplinas_cursadas"]
-    df["media_reposicoes_por_disciplina"] = (
-        df["total_reposicoes"] / df["disciplinas_cursadas"]
-    )
-    df["coeficiente_variacao_nota"] = df["std_media_final"] / df["media_final_geral"]
-    return df
-
 
 def limpar_colunas(df):
     colunas_para_remover = [
@@ -285,7 +260,6 @@ def run():
     situacoes = get_situacoes(dados_pessoais)
 
     df_final = get_dataset(dados_pessoais, matriculas, situacoes)
-    df_final = adicionar_features(df_final)
     df_final = cirar_target(df_final)
     df_final = limpar_colunas(df_final)
     df_final = round_numeric_columns(df_final)
