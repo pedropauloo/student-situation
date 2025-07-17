@@ -13,13 +13,11 @@ for col in categorical_cols:
     df[col] = le.fit_transform(df[col].astype(str))
     label_encoders[col] = le
 
-# Preenchendo valores ausentes em colunas numéricas com a mediana
 for col in df.select_dtypes(include=["float64", "int64"]):
-    df[col].fillna(df[col].median(), inplace=True)
+    df[col] = df[col].fillna(df[col].median())
 
-# Preenchendo valores ausentes em colunas categóricas com a moda
 for col in categorical_cols:
-    df[col].fillna(df[col].mode()[0], inplace=True)
+    df[col] = df[col].fillna(df[col].mode()[0])
 
 X = df.drop(
     columns=[
@@ -40,7 +38,7 @@ scaler = StandardScaler()
 X_train[num_cols] = scaler.fit_transform(X_train[num_cols])
 X_test[num_cols] = scaler.transform(X_test[num_cols])
 
-clf = RandomForestClassifier(class_weight='balanced', random_state=42)
+clf = RandomForestClassifier(class_weight="balanced", random_state=42)
 clf.fit(X_train, y_train)
 
 y_pred = clf.predict(X_test)
@@ -61,4 +59,3 @@ print(report)
 
 # tentar balancear o dataset
 # treinar outros modelos
-
