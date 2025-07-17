@@ -1,146 +1,150 @@
-import pandas as pd
 import os
+import pandas as pd
 import unicodedata
-
-def get_csv_from(pasta_csv):
-    dfs = []
-    arquivos = [f for f in os.listdir(pasta_csv) if f.endswith(".csv")]
-
-    if not arquivos:
-        print("Nenhum arquivo .csv encontrado na pasta.")
-        return pd.DataFrame()
-
-    for arquivo in arquivos:
-        caminho_completo = os.path.join(pasta_csv, arquivo)
-        try:
-            df = pd.read_csv(caminho_completo, sep=";", encoding="utf-8")
-            dfs.append(df)
-        except Exception as e:
-            print(f"Erro ao ler {arquivo}: {e}")
-
-    df_concatenado = pd.concat(dfs, ignore_index=True)
-    return df_concatenado
+from datetime import datetime
 
 
-def get_dados_pessoais():
-    dados_pessoais = get_csv_from("./dados/dados_pessoais_discentes")
-    dados_pessoais.columns = dados_pessoais.columns.str.strip().str.lower()
-    dados_pessoais["id_discente"] = (
-        dados_pessoais["id_discente"].astype(str).str.strip().str.lower()
+def padronizar_colunas(df):
+    df = df.rename(columns=str.strip).rename(columns=str.lower)
+    df["id_discente"] = df["id_discente"].astype(str).str.strip().str.lower()
+
+    return df
+
+
+def agrupar(df, col, nome, agg="nunique"):
+    return df.groupby("id_discente")[col].agg(agg).reset_index(name=nome)
+
+
+def arredondar_colunas_numericas(df):
+    colunas_float = df.select_dtypes(include=["float", "float64"]).columns
+    df[colunas_float] = df[colunas_float].round(2)
+
+    return df
+
+
+def remover_acentos(texto):
+    return (
+        unicodedata.normalize("NFKD", texto).encode("ASCII", "ignore").decode("ASCII")
     )
-    dados_pessoais.rename(columns={"status": "status_do_discente"}, inplace=True)
-    
-    dados_pessoais = dados_pessoais[
-        dados_pessoais["nivel_ensino"].str.strip().str.upper() == "GRADUAÇÃO"
-    ]
-
-    return dados_pessoais
-
-
-def get_matriculas(dados_pessoais):
-    matriculas = get_csv_from("./dados/matriculas")
-    matriculas.columns = matriculas.columns.str.strip().str.lower()
-
-    matriculas.rename(columns={"discente": "id_discente"}, inplace=True)
-
-    matriculas = matriculas.loc[:, ~matriculas.columns.duplicated()]
-
-    matriculas["id_discente"] = (
-        matriculas["id_discente"].astype(str).str.strip().str.lower()
-    )
-
-    matriculas["media_final"] = matriculas["media_final"].str.replace(",", ".")
-    matriculas["media_final"] = pd.to_numeric(
-        matriculas["media_final"], errors="coerce"
-    )
-
-    matriculas["numero_total_faltas"] = pd.to_numeric(
-        matriculas["numero_total_faltas"], errors="coerce"
-    )
-
-    matriculas["reposicao"] = matriculas["reposicao"].map({"True": 1, "False": 0})
-    matriculas["reposicao"] = pd.to_numeric(
-        matriculas["reposicao"], errors="coerce"
-    ).fillna(0)
-
-    matriculas = matriculas[
-        matriculas["id_discente"].isin(dados_pessoais["id_discente"])
-    ]
-
-    return matriculas
-
-
-def get_situacoes(dados_pessoais):
-    situacoes = get_csv_from("./dados/situacao_discentes")
-    if situacoes.empty:
-        return situacoes
-    situacoes.columns = situacoes.columns.str.strip().str.lower()
-    situacoes["id_discente"] = (
-        situacoes["id_discente"].astype(str).str.strip().str.lower()
-    )
-    situacoes.rename(columns={"situacao": "situacao_discente_2022"}, inplace=True)
-    situacoes = situacoes[situacoes["id_discente"].isin(dados_pessoais["id_discente"])]
-
-    situacoes["situacao_discente_2022"] = (
-        situacoes["situacao_discente_2022"].str.strip().str.upper()
-    )
-    situacoes["situacao_discente_2022"] = situacoes["situacao_discente_2022"].apply(
-        lambda x: (
-            unicodedata.normalize("NFKD", x).encode("ASCII", "ignore").decode("ASCII")
-            if pd.notna(x)
-            else x
-        )
-    )
-
-    return situacoes
 
 
 def categorizar_descricao(descricao):
     if pd.isna(descricao):
         return "outros"
+
     desc = descricao.strip().upper()
     if "APROVADO" in desc or "DISPENSADO" in desc:
         return "aprovada"
-    elif "REPROVADO" in desc:
+    if "REPROVADO" in desc:
         return "reprovada"
-    elif "TRANCADO" in desc or "CANCELADO" in desc or "DESISTENCIA" in desc:
+    if any(x in desc for x in ["TRANCADO", "CANCELADO", "DESISTENCIA"]):
         return "trancada"
-    elif "INDEFERIDO" in desc:
+    if "INDEFERIDO" in desc:
         return "indeferido"
-    else:
-        return "outros"
+    return "outros"
 
 
-def get_dataset(dados_pessoais, matriculas, situacoes):
-    for dataframe in [dados_pessoais, matriculas, situacoes]:
-        dataframe["id_discente"] = (
-            dataframe["id_discente"].astype(str).str.strip().str.lower()
-        )
+def carregar_csvs_em_pasta(caminho_pasta):
+    arquivos = [f for f in os.listdir(caminho_pasta) if f.endswith(".csv")]
+    if not arquivos:
+        print(f"Nenhum CSV encontrado em {caminho_pasta}")
+        return pd.DataFrame()
 
+    dfs = []
+    for arquivo in arquivos:
+        try:
+            df = pd.read_csv(
+                os.path.join(caminho_pasta, arquivo), sep=";", encoding="utf-8"
+            )
+            dfs.append(df)
+        except Exception as e:
+            print(f"Erro ao ler {arquivo}: {e}")
+
+    return pd.concat(dfs, ignore_index=True)
+
+
+def carregar_dados_pessoais():
+    df = carregar_csvs_em_pasta("./dados/dados_pessoais_discentes")
+    df = padronizar_colunas(df)
+
+    df = df[df["nivel_ensino"].str.upper().str.strip() == "GRADUAÇÃO"]
+
+    df.rename(columns={"status": "status_do_discente"}, inplace=True)
+
+    return df
+
+
+def carregar_matriculas(dados_pessoais):
+    df = carregar_csvs_em_pasta("./dados/matriculas")
+
+    df.rename(columns={"discente": "id_discente"}, inplace=True)
+
+    df = padronizar_colunas(df)
+    df = df.loc[:, ~df.columns.duplicated()]
+
+    df["media_final"] = pd.to_numeric(
+        df["media_final"].str.replace(",", "."), errors="coerce"
+    )
+
+    df["numero_total_faltas"] = pd.to_numeric(
+        df["numero_total_faltas"], errors="coerce"
+    )
+
+    df["reposicao"] = pd.to_numeric(
+        df["reposicao"].map({"True": 1, "False": 0}), errors="coerce"
+    ).fillna(0)
+
+    df = df[df["id_discente"].isin(dados_pessoais["id_discente"])]
+
+    return df
+
+
+def carregar_situacoes(dados_pessoais):
+    df = carregar_csvs_em_pasta("./dados/situacao_discentes")
+
+    if df.empty:
+        return df
+
+    df = padronizar_colunas(df)
+    df = df[df["id_discente"].isin(dados_pessoais["id_discente"])]
+
+    df["situacao"] = df["situacao"].str.upper().str.strip()
+    df["situacao"] = df["situacao"].apply(
+        lambda x: remover_acentos(x) if pd.notna(x) else x
+    )
+
+    return df
+
+
+def construir_features(dados_pessoais, matriculas, situacoes):
     matriculas["categoria"] = matriculas["descricao"].apply(categorizar_descricao)
 
-    disciplinas_cursadas = (
-        matriculas.groupby("id_discente")["id_turma"]
-        .nunique()
-        .reset_index(name="disciplinas_cursadas")
+    features = dados_pessoais.copy()
+    features["ano_nascimento"] = pd.to_numeric(
+        features["ano_nascimento"], errors="coerce"
+    )
+    features["idade"] = datetime.now().year - features["ano_nascimento"]
+
+    features = features.merge(
+        agrupar(matriculas, "id_turma", "disciplinas_cursadas"),
+        on="id_discente",
+        how="left",
     )
 
-    contagem_categorias = (
-        matriculas.pivot_table(
-            index="id_discente",
-            columns="categoria",
-            values="id_turma",
-            aggfunc="nunique",
-            fill_value=0,
-        )
-        .rename(columns=lambda col: f"disciplina_{col}")
-        .reset_index()
+    categorias = matriculas.pivot_table(
+        index="id_discente",
+        columns="categoria",
+        values="id_turma",
+        aggfunc="nunique",
+        fill_value=0,
     )
+    categorias.columns = [f"disciplina_{col}" for col in categorias.columns]
+    features = features.merge(categorias.reset_index(), on="id_discente", how="left")
 
-    media_geral = (
-        matriculas.groupby("id_discente")["media_final"]
-        .mean()
-        .reset_index(name="media_final_geral")
+    features = features.merge(
+        agrupar(matriculas, "media_final", "media_final_geral", agg="mean"),
+        on="id_discente",
+        how="left",
     )
 
     faltas_unicas = (
@@ -148,55 +152,28 @@ def get_dataset(dados_pessoais, matriculas, situacoes):
         .first()
         .reset_index()
     )
-
-    total_faltas = (
-        faltas_unicas.groupby("id_discente")["numero_total_faltas"]
-        .sum()
-        .reset_index(name="total_faltas")
+    total_faltas = agrupar(
+        faltas_unicas, "numero_total_faltas", "total_faltas", agg="sum"
     )
+    total_reposicoes = agrupar(matriculas, "reposicao", "total_reposicoes", agg="sum")
 
-    total_reposicoes = (
-        matriculas.groupby("id_discente")["reposicao"]
-        .sum()
-        .reset_index(name="total_reposicoes")
-    )
+    features = features.merge(total_faltas, on="id_discente", how="left")
+    features = features.merge(total_reposicoes, on="id_discente", how="left")
 
     situacoes["semestre"] = (
         situacoes["ano_alteracao_situacao"].astype(str)
         + "."
         + situacoes["periodo_alteracao_situacao"].astype(str)
     )
-
-    semestres_cursados = (
-        situacoes.groupby("id_discente")["semestre"]
-        .nunique()
-        .reset_index(name="semestres_cursados")
-    )
+    semestres_cursados = agrupar(situacoes, "semestre", "semestres_cursados")
 
     ultima_situacao = (
-        situacoes.sort_values("data_alteracao_situacao")
-        .groupby("id_discente")
-        .tail(1)[["id_discente", "situacao_discente_2022"]]
+        situacoes.sort_values("data_alteracao_situacao").groupby("id_discente").tail(1)
     )
+    ultima_situacao = ultima_situacao[["id_discente", "situacao"]]
 
-    df_features = dados_pessoais.copy()
-
-    df_features["ano_nascimento"] = pd.to_numeric(
-        df_features["ano_nascimento"], errors="coerce"
-    )
-    
-    ano_atual = pd.to_datetime("now").year
-    df_features["idade"] = ano_atual - df_features["ano_nascimento"]
-
-    df_features = df_features.merge(disciplinas_cursadas, on="id_discente", how="left")
-    df_features = df_features.merge(contagem_categorias, on="id_discente", how="left")
-    df_features = df_features.merge(media_geral, on="id_discente", how="left")
-    df_features = df_features.merge(total_faltas, on="id_discente", how="left")
-    df_features = df_features.merge(total_reposicoes, on="id_discente", how="left")
-
-    df_features = df_features.merge(semestres_cursados, on="id_discente", how="left")
-
-    df_features = df_features.merge(ultima_situacao, on="id_discente", how="left")
+    features = features.merge(semestres_cursados, on="id_discente", how="left")
+    features = features.merge(ultima_situacao, on="id_discente", how="left")
 
     col_numericas = [
         "disciplinas_cursadas",
@@ -205,16 +182,30 @@ def get_dataset(dados_pessoais, matriculas, situacoes):
         "total_reposicoes",
         "semestres_cursados",
     ]
+
     for col in col_numericas:
-        if col in df_features.columns:
-            df_features[col] = df_features[col].fillna(0)
+        if col in features.columns:
+            features[col] = features[col].fillna(0)
 
-    return df_features
+    return features
 
-def limpar_colunas(df):
-    colunas_para_remover = [
+
+def criar_target(df):
+    df["aluno_evadio"] = (
+        df["status_do_discente"]
+        .str.upper()
+        .apply(
+            lambda x: int("CANCELADO" in x or "DESISTENCIA" in x) if pd.notna(x) else 0
+        )
+    )
+
+    return df
+
+
+def limpar_colunas_irrelevantes(df):
+    colunas_remover = [
         "estado_origem",
-        "cidade_origem",    
+        "cidade_origem",
         "estado",
         "municipio",
         "bairro",
@@ -224,48 +215,69 @@ def limpar_colunas(df):
         "tipo_cota",
         "descricao_tipo_cota",
         "status_do_discente",
-        "situacao_discente_2022",
+        "situacao",
     ]
 
-    colunas_existentes = [col for col in colunas_para_remover if col in df.columns]
-    df = df.drop(columns=colunas_existentes)
+    df = df.drop(
+        columns=[col for col in colunas_remover if col in df.columns], errors="ignore"
+    )
 
     if "cotista" in df.columns:
         df["cotista"] = (
-            df["cotista"].astype(str).str.strip().str.lower().map({"t": 1, "f": 0})
+            df["cotista"]
+            .astype(str)
+            .str.strip()
+            .str.lower()
+            .map({"t": 1, "f": 0})
+            .fillna(0)
+            .astype(int)
         )
-        df["cotista"] = df["cotista"].fillna(0).astype(int)
 
     return df
 
 
-def cirar_target(df):
-    df["aluno_evadio"] = (
-        df["status_do_discente"]
-        .str.upper()
-        .apply(lambda x: int("CANCELADO" in x or "DESISTENCIA" in x) if pd.notna(x) else 0)
+def remover_registros_ruidosos(df):
+    cond_ruido = (
+        ((df["periodo_ingresso"] == 1.0) | (df["periodo_ingresso"] == 2.0))
+        & (df["cotista"] == 0)
+        & (df["idade"].isna())
+        & (df["disciplinas_cursadas"] == 0.0)
+        & (df["disciplina_aprovada"].isna())
+        & (df["disciplina_indeferido"].isna())
+        & (df["disciplina_outros"].isna())
+        & (df["disciplina_reprovada"].isna())
+        & (df["disciplina_trancada"].isna())
+        & (df["media_final_geral"] == 0.0)
+        & (df["total_faltas"] == 0.0)
+        & (df["total_reposicoes"] == 0.0)
+        & (df["semestres_cursados"] == 0.0)
     )
+
+    df = df[~cond_ruido]
+
+    if "ano_ingresso" in df.columns:
+        df = df[df["ano_ingresso"] >= 2010]
+
+    if "sexo" in df.columns:
+        df = df[df["sexo"].isin(["M", "F"])]
+
     return df
 
 
-def round_numeric_columns(df):
-    colunas_numericas = df.select_dtypes(include=["float", "float64"]).columns
-    df[colunas_numericas] = df[colunas_numericas].round(2)
-    return df
+def pipeline():
+    dados_pessoais = carregar_dados_pessoais()
+    matriculas = carregar_matriculas(dados_pessoais)
+    situacoes = carregar_situacoes(dados_pessoais)
 
+    df = construir_features(dados_pessoais, matriculas, situacoes)
+    df = criar_target(df)
+    df = limpar_colunas_irrelevantes(df)
+    df = arredondar_colunas_numericas(df)
+    df = remover_registros_ruidosos(df)
 
-def run():
-    dados_pessoais = get_dados_pessoais()
-    matriculas = get_matriculas(dados_pessoais)
-    situacoes = get_situacoes(dados_pessoais)
-
-    df_final = get_dataset(dados_pessoais, matriculas, situacoes)
-    df_final = cirar_target(df_final)
-    df_final = limpar_colunas(df_final)
-    df_final = round_numeric_columns(df_final)
-
-    df_final.to_csv("dados_completos.csv", index=False, sep=";", encoding="utf-8")
+    df.to_csv("dados_completos.csv", index=False, sep=";", encoding="utf-8")
+    print("Arquivo salvo com sucesso")
 
 
 if __name__ == "__main__":
-    run()
+    pipeline()
